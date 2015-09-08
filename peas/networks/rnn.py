@@ -30,14 +30,14 @@ def gauss(x):
     """ Returns the pdf of a gaussian.
     """
     return np.exp(-x ** 2 / 2.0) / sqrt_two_pi
-    
+
 def sigmoid(x):
-    """ Sigmoid function. 
+    """ Sigmoid function.
     """
     return 1 / (1 + np.exp(-x))
 
 def sigmoid2(x):
-    """ Sigmoid function. 
+    """ Sigmoid function.
     """
     return 1 / (1 + np.exp(-4.9*x))
 
@@ -82,14 +82,14 @@ COMPLEX_NODE_FUNCS = {
 
 
 
-### CLASSES ### 
+### CLASSES ###
 
 class NeuralNetwork(object):
     """ A neural network. Can have recursive connections.
     """
-    
+
     def from_matrix(self, matrix, node_types=['sigmoid']):
-        """ Constructs a network from a weight matrix. 
+        """ Constructs a network from a weight matrix.
         """
         # Initialize net
         self.original_shape = matrix.shape[:matrix.ndim//2]
@@ -102,7 +102,7 @@ class NeuralNetwork(object):
         self.act = np.zeros(self.cm.shape[0])
         self.optimize()
         return self
-        
+
     def from_neatchromosome(self, chromosome):
         """ Construct a network from a Chromosome instance, from
             the neat-python package. This is a connection-list
@@ -111,7 +111,7 @@ class NeuralNetwork(object):
         # TODO Deprecate the neat-python compatibility
         # Typecheck
         import neat.chromosome
-        
+
         if not isinstance(chromosome, neat.chromosome.Chromosome):
             raise Exception("Input should be a NEAT chromosome, is %r." % (chromosome))
         # Sort nodes: BIAS, INPUT, HIDDEN, OUTPUT, with HIDDEN sorted by feed-forward.
@@ -167,17 +167,17 @@ class NeuralNetwork(object):
                     nt.append(COMPLEX_NODE_FUNCS[fn])
             self.node_types = nt
 
-    
+
     def __init__(self, source=None):
         # Set instance vars
         self.feedforward    = False
-        self.sandwich       = False   
+        self.sandwich       = False
         self.cm             = None
         self.node_types     = None
         self.original_shape = None
         self.sum_all_node_inputs = False
         self.all_nodes_same_function = False
-        
+
         if source is not None:
             try:
                 self.from_matrix(*source.get_network_data())
@@ -195,27 +195,27 @@ class NeuralNetwork(object):
         self.cm = np.vstack((np.zeros(self.cm.shape), self.cm))
         self.act = np.zeros(self.cm.shape[0])
         return self
-        
+
     def num_nodes(self):
         return self.cm.shape[0]
-        
+
     def make_feedforward(self):
-        """ Zeros out all recursive connections. 
+        """ Zeros out all recursive connections.
         """
         if np.triu(np.nan_to_num(self.cm)).any():
             raise Exception("Connection Matrix does not describe feedforward network. \n %s" % np.sign(self.cm))
         self.feedforward = True
         self.cm[np.triu_indices(self.cm.shape[0])] = 0
-        
+
     def flush(self):
         """ Reset activation values. """
         self.act = np.zeros(self.cm.shape[0])
-        
+
     def feed(self, input_activation, add_bias=True, propagate=1):
         """ Feed an input to the network, returns the entire
             activation state, you need to extract the output nodes
             manually.
-            
+
             :param add_bias: Add a bias input automatically, before other inputs.
         """
         if propagate != 1 and (self.feedforward or self.sandwich):
@@ -224,16 +224,16 @@ class NeuralNetwork(object):
         node_types = self.node_types
         cm = self.cm
         input_shape = input_activation.shape
-        
+
         if add_bias:
             input_activation = np.hstack((1.0, input_activation))
-        
+
         if input_activation.size >= act.size:
             raise Exception("More input values (%s) than nodes (%s)." % (input_activation.shape, act.shape))
-        
+
         input_size = min(act.size - 1, input_activation.size)
         node_count = act.size
-        
+
         # Feed forward nets reset the activation, and activate as many
         # times as there are nodes
         if self.feedforward:
@@ -244,13 +244,13 @@ class NeuralNetwork(object):
             propagate = 1
         for _ in xrange(propagate):
             act[:input_size] = input_activation.flat[:input_size]
-            
+
             if self.sum_all_node_inputs:
                 nodeinputs = np.dot(self.cm, act)
             else:
                 nodeinputs = self.cm * act
                 nodeinputs = [ni[-np.isnan(ni)] for ni in nodeinputs]
-            
+
             if self.all_nodes_same_function:
                 act = node_types[0](nodeinputs)
             else:
@@ -261,7 +261,7 @@ class NeuralNetwork(object):
 
         # Reshape the output to 2D if it was 2D
         if self.sandwich:
-            return act[act.size//2:].reshape(input_shape)      
+            return act[act.size//2:].reshape(input_shape)
         else:
             return act.reshape(self.original_shape)
 
@@ -274,11 +274,11 @@ class NeuralNetwork(object):
         s[cp < 0] = '-'
         return '\n'.join([''.join(l) + '|' for l in s])
 
-    
+
     def visualize(self, filename, inputs=3, outputs=1):
         """ Visualize the network, stores in file. """
-        if self.cm.shape[0] > 50:
-            return
+        # if self.cm.shape[0] > 50:
+        #     return
         import pygraphviz as pgv
         # Some settings
         node_dist = 1
@@ -311,19 +311,19 @@ class NeuralNetwork(object):
             G.get_node(n).attr['shape'] = 'doublecircle'
             G.get_node(n).attr['fillcolor'] = 'tan'
             G.get_node(n).attr['style'] = 'filled'
-        
+
         G.node_attr['shape'] = 'circle'
-        if self.sandwich: 
+        if self.sandwich:
             # neato supports fixed node positions, so it's better for
             # sandwich networks
             prog = 'neato'
         else:
             prog = 'dot'
         G.draw(filename, prog=prog)
-        
+
     def __str__(self):
         return 'Neuralnet with %d nodes.' % (self.act.shape[0])
-        
+
 
 if __name__ == '__main__':
     # import doctest
@@ -331,4 +331,3 @@ if __name__ == '__main__':
     a = NeuralNetwork().from_matrix(np.array([[0,0,0],[0,0,0],[1,1,0]]))
     print a.cm_string()
     print a.feed(np.array([1,1]), add_bias=False)
-    
